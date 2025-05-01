@@ -1,0 +1,27 @@
+Specifications:
+*This file should only be edited by humans*
+
+- Review and deeply understand the codebase. Summarize your findings and figure out the idea behind the frontend and what needs to be done with our backend together with the database.
+- Create a dot_env.example that specifices the adresses of the frontend, backend and database.
+- Keep the frontend as it is, only change the backend with this prompt.
+- I REPEAT: *Keep the frontend as it is, only change the backend with this prompt.*
+- Connect a PostgreSQL Database using a configurable port. 
+- Everything goes into separate docker containers.
+- Use JWT / Database tokens for Authentication.
+- Use the new version of compose, i.e. compose.yml, NOT docker-compose.yml
+- Setup models.py using SQL Alchemy 2.0 for mapping the database.
+- Open Up Access Rights for any databases. Use a simple static password for PostgreSQL.
+- Create a FastAPI Backend (hosted on a configurable port) that communicates with the frontend using endpoints that are relevant in this context.
+- Be very careful and don't make the Pydantic structures overly complex.
+
+Let's make this in very small steps. Let's work like this:
+
+- You implement exactly what we agreed (and no more!) for the step in question
+- Always remember instructions.txt for additional instructions.
+- See instructions.txt and keep it as context throughout the entire process.
+- Do not refactor any code (or change any existing functionality) without asking and warning me specifically.
+- You verify VERY carefully that the program works, both regression-wise and the newly implemented features/changes.
+
+Any questions?
+If not, go but keep it step by step.
+Make me proud!
