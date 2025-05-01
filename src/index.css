@@ -75,7 +75,7 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply bg-background text-foreground font-sans transition-colors duration-300;
   }
   
   h1, h2, h3, h4, h5, h6 {
@@ -98,25 +98,33 @@
 @layer components {
   .gradient-heading {
     @apply bg-gradient-to-r from-brand-purple-dark via-brand-purple to-brand-purple-light bg-clip-text text-transparent;
+    @apply dark:bg-gradient-to-r dark:from-brand-purple-light dark:via-brand-purple dark:to-brand-purple-dark;
   }
   
   .hover-glow {
     @apply transition-all hover:shadow-lg hover:shadow-brand-purple/20;
+    @apply dark:hover:shadow-brand-purple/30;
   }
   
   .btn-primary {
-    @apply bg-gradient-to-r from-brand-purple-dark to-brand-purple text-white px-6 py-3 rounded-md font-medium transition-all hover:shadow-lg hover:shadow-brand-purple/30 hover:-translate-y-0.5 active:translate-y-0;
+    @apply bg-gradient-to-r from-brand-purple-dark to-brand-purple text-white px-6 py-3 rounded-md font-medium;
+    @apply transition-all hover:shadow-lg hover:shadow-brand-purple/30 hover:-translate-y-0.5 active:translate-y-0;
+    @apply dark:from-brand-purple dark:to-brand-purple-light dark:text-gray-900;
   }
   
   .btn-secondary {
-    @apply bg-white border border-gray-200 text-gray-800 px-6 py-3 rounded-md font-medium transition-all hover:shadow-md hover:border-brand-purple/30 active:bg-gray-50;
+    @apply bg-white border border-gray-200 text-gray-800 px-6 py-3 rounded-md font-medium;
+    @apply transition-all hover:shadow-md hover:border-brand-purple/30 active:bg-gray-50;
+    @apply dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:border-brand-purple-light/50 dark:active:bg-gray-700;
   }
   
   .card {
     @apply bg-white rounded-xl border border-gray-100 shadow-sm p-6 hover-glow;
+    @apply dark:bg-gray-800 dark:border-gray-700;
   }
   
   .input-primary {
     @apply bg-gray-50 border border-gray-200 rounded-md px-4 py-2 w-full focus:outline-none focus:border-brand-purple focus:ring-1 focus:ring-brand-purple;
+    @apply dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:border-brand-purple-light dark:focus:ring-brand-purple-light;
   }
 }
