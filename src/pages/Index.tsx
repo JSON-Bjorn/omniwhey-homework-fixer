@@ -1,12 +1,9 @@
-
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-
 const Index = () => {
-  return (
-    <div className="min-h-screen flex flex-col">
+  return <div className="min-h-screen flex flex-col">
       <Navbar />
       
       <main className="flex-grow">
@@ -15,7 +12,7 @@ const Index = () => {
           <div className="container px-4 mx-auto">
             <div className="flex flex-col md:flex-row items-center">
               <div className="md:w-1/2 md:pr-10 mb-10 md:mb-0">
-                <h1 className="text-5xl md:text-6xl font-bold mb-6 gradient-heading">
+                <h1 className="text-5xl font-bold mb-6 gradient-heading md:text-3xl">
                   AI-Powered Homework Feedback
                 </h1>
                 <p className="text-xl text-gray-600 mb-8">
@@ -35,11 +32,7 @@ const Index = () => {
                 </div>
               </div>
               <div className="md:w-1/2 animate-fade-in">
-                <img 
-                  src="/placeholder.svg" 
-                  alt="Student getting homework feedback" 
-                  className="rounded-lg shadow-xl"
-                />
+                <img src="/placeholder.svg" alt="Student getting homework feedback" className="rounded-lg shadow-xl" />
               </div>
             </div>
           </div>
@@ -112,11 +105,9 @@ const Index = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <div className="card">
                 <div className="flex gap-2 text-amber-400 mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <svg key={i} xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                  {[...Array(5)].map((_, i) => <svg key={i} xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none">
                       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                    </svg>
-                  ))}
+                    </svg>)}
                 </div>
                 <p className="text-gray-600 mb-4">
                   "Omniwhey helped me understand where I was going wrong in my calculus homework. The detailed explanations were like having a tutor available 24/7."
@@ -132,11 +123,9 @@ const Index = () => {
               
               <div className="card">
                 <div className="flex gap-2 text-amber-400 mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <svg key={i} xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                  {[...Array(5)].map((_, i) => <svg key={i} xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none">
                       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                    </svg>
-                  ))}
+                    </svg>)}
                 </div>
                 <p className="text-gray-600 mb-4">
                   "I've seen a significant improvement in my essay writing skills thanks to the personalized feedback. My professor even commented on my progress!"
@@ -152,11 +141,9 @@ const Index = () => {
               
               <div className="card">
                 <div className="flex gap-2 text-amber-400 mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <svg key={i} xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill={i < 4 ? "currentColor" : "none"} stroke={i < 4 ? "none" : "currentColor"} strokeWidth="2">
+                  {[...Array(5)].map((_, i) => <svg key={i} xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill={i < 4 ? "currentColor" : "none"} stroke={i < 4 ? "none" : "currentColor"} strokeWidth="2">
                       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                    </svg>
-                  ))}
+                    </svg>)}
                 </div>
                 <p className="text-gray-600 mb-4">
                   "As a teacher, I recommend Omniwhey to all my students. It gives them instant feedback when I'm not available, and the AI catches things I might miss."
@@ -190,8 +177,6 @@ const Index = () => {
       </main>
       
       <Footer />
-    </div>
-  );
+    </div>;
 };
-
 export default Index;
