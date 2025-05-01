@@ -1,12 +1,9 @@
-
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-
 const Index = () => {
-  return (
-    <div className="min-h-screen flex flex-col">
+  return <div className="min-h-screen flex flex-col">
       <Navbar />
       
       <main className="flex-grow">
@@ -23,7 +20,7 @@ const Index = () => {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4">
                   <Link to="/login">
-                    <Button size="lg" className="btn-primary">
+                    <Button size="lg" className="btn-primary text-2xl">
                       Get Started
                     </Button>
                   </Link>
@@ -180,8 +177,6 @@ const Index = () => {
       </main>
       
       <Footer />
-    </div>
-  );
+    </div>;
 };
-
 export default Index;
