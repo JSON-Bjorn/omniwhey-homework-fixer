@@ -1,0 +1,14 @@
+# Frontend configuration
+FRONTEND_PORT=5173
+FRONTEND_URL=http://localhost:5173
+
+# Backend configuration
+BACKEND_PORT=8000
+BACKEND_URL=http://localhost:8000
+
+# Database configuration
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_NAME=omniwhey
+DB_HOST=localhost 

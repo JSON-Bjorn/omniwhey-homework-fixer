@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -22,23 +21,44 @@ const AuthForm = () => {
   const [name, setName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     try {
-      // Here we would implement actual authentication logic
-      // For now, we'll just simulate success
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      // Connect to our backend API
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+      // For now, we'll just implement login
+      const response = await fetch(`${apiUrl}/api/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Authentication failed');
+      }
+
+      const data = await response.json();
+
+      // Store the token in localStorage
+      localStorage.setItem('token', data.access_token);
+
       toast({
         title: isSignUp ? "Account created!" : "Welcome back!",
-        description: isSignUp 
-          ? "Your account has been created successfully." 
+        description: isSignUp
+          ? "Your account has been created successfully."
           : "You've been logged in successfully.",
       });
-      
+
       // Redirect to dashboard in real app
       window.location.href = "/dashboard";
     } catch (error) {
@@ -51,7 +71,7 @@ const AuthForm = () => {
       setIsLoading(false);
     }
   };
-  
+
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
@@ -77,7 +97,7 @@ const AuthForm = () => {
               />
             </div>
           )}
-          
+
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -89,7 +109,7 @@ const AuthForm = () => {
               required
             />
           </div>
-          
+
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="password">Password</Label>
@@ -107,7 +127,7 @@ const AuthForm = () => {
               required
             />
           </div>
-          
+
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading ? (
               <div className="flex items-center gap-2">
