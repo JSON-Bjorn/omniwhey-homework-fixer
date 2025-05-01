@@ -51,7 +51,7 @@ app = FastAPI(title="OmniWhey API")
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with specific origins
+    allow_origins=["http://localhost:5173"],  # Specify the frontend origin explicitly
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
