@@ -1,7 +1,8 @@
 from fastapi.testclient import TestClient
 import pytest
-from ..app.main import app, fake_users_db, pwd_context
+from ..app.main import app, fake_users_db, pwd_context, authenticate_user
 
+# Create a test client
 client = TestClient(app)
 
 
@@ -43,7 +44,8 @@ def test_add_user():
     fake_users_db[test_email] = {
         "email": test_email,
         "hashed_password": pwd_context.hash(test_password),
-        "disabled": False,
+        "is_active": True,
+        "is_admin": False,
     }
 
     # Try to login with the new user

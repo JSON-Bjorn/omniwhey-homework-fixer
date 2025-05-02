@@ -6,38 +6,87 @@ services:
       context: ../frontend
       dockerfile: Dockerfile
     ports:
-      - "${FRONTEND_PORT:-5173}:5173"
+      - ${FRONTEND_PORT:-5173}:8080
     volumes:
       - ../frontend:/app
       - /app/node_modules
     environment:
-      - VITE_API_URL=${BACKEND_URL:-http://localhost:8000}
+      - VITE_API_URL=http://backend:8000
     depends_on:
       - backend
+    restart: unless-stopped
+    command: >
+      sh -c "
+        echo 'Creating src directory structure...' &&
+        mkdir -p /app/src &&
+        cp -f /app/main.tsx /app/src/ 2>/dev/null || true &&
+        cp -f /app/App.tsx /app/src/ 2>/dev/null || true &&
+        cp -f /app/index.css /app/src/ 2>/dev/null || true &&
+        mkdir -p /app/src/pages &&
+        cp -r /app/pages/* /app/src/pages/ 2>/dev/null || true &&
+        mkdir -p /app/src/components &&
+        cp -r /app/components/* /app/src/components/ 2>/dev/null || true &&
+        mkdir -p /app/src/hooks &&
+        cp -r /app/hooks/* /app/src/hooks/ 2>/dev/null || true &&
+        mkdir -p /app/src/lib &&
+        cp -r /app/lib/* /app/src/lib/ 2>/dev/null || true &&
+        echo 'Starting Vite server...' &&
+        npm run dev
+      "
 
   backend:
     build:
       context: ../backend
       dockerfile: Dockerfile
     ports:
-      - "${BACKEND_PORT:-8000}:8000"
+      - ${BACKEND_PORT:-8000}:8000
     volumes:
       - ../backend:/app
+      - /app/__pycache__
     environment:
-      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:${DB_PORT:-5432}/${DB_NAME:-omniwhey}
+      - PORT=8000
+      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-omniwhey}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DB_NAME=${DB_NAME:-omniwhey}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-supersecretkey}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
+      - JWT_ACCESS_TOKEN_EXPIRE_MINUTES=${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
+      - WAIT_FOR_DB=true
+      - REQUIRE_DB=false
+      - RELOAD=false
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    command: >
+      bash -c "
+        echo 'Initializing database using standalone script...' &&
+        python init_db_standalone.py &&
+        echo 'Starting API server...' &&
+        python run.py
+      "
 
   db:
     image: postgres:15
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - ${DB_PORT:-5432}:5432
     environment:
       - POSTGRES_USER=${DB_USER:-postgres}
       - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
       - POSTGRES_DB=${DB_NAME:-omniwhey}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
 volumes:
   postgres_data:
