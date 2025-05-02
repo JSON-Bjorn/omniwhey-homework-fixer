@@ -2,9 +2,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
-import { AuthProvider } from "@/hooks/useAuth";
+import { AuthProvider } from "@/components/AuthProvider";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -16,26 +17,6 @@ import SubmissionDetail from "./pages/SubmissionDetail";
 import AdminPanel from "./pages/AdminPanel";
 
 const queryClient = new QueryClient();
-
-// Protected route component
-const ProtectedRoute = ({ element }: { element: React.ReactNode }) => {
-  // Check if user is authenticated (token exists)
-  const isAuthenticated = localStorage.getItem('auth_token') !== null;
-  return isAuthenticated ? element : <Navigate to="/login" />;
-};
-
-// Admin route component
-const AdminRoute = ({ element }: { element: React.ReactNode }) => {
-  // For simplicity, we're using localStorage to check admin status
-  // In a real app, you'd check the user object from your auth context
-  const isAuthenticated = localStorage.getItem('auth_token') !== null;
-  const isAdmin = localStorage.getItem('is_admin') === 'true';
-
-  if (!isAuthenticated) return <Navigate to="/login" />;
-  if (!isAdmin) return <Navigate to="/dashboard" />;
-
-  return element;
-};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -53,7 +34,7 @@ const App = () => (
               <Route path="/submissions" element={<ProtectedRoute element={<Submissions />} />} />
               <Route path="/submissions/:id" element={<ProtectedRoute element={<SubmissionDetail />} />} />
               <Route path="/templates" element={<ProtectedRoute element={<Templates />} />} />
-              <Route path="/admin" element={<AdminRoute element={<AdminPanel />} />} />
+              <Route path="/admin" element={<ProtectedRoute element={<AdminPanel />} requireAdmin={true} />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

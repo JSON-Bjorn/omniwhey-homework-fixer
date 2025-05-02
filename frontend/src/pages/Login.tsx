@@ -1,9 +1,9 @@
-
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import AuthForm from '@/components/AuthForm';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import { AuthProvider } from '@/components/AuthProvider';
 
 const Login = () => {
   useEffect(() => {
@@ -14,7 +14,7 @@ const Login = () => {
   return (
     <div className="flex flex-col min-h-screen">
       <Navbar />
-      
+
       <main className="flex-grow flex items-center justify-center bg-gray-50 py-12">
         <div className="container px-4 mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-center gap-8 md:gap-16">
@@ -25,9 +25,11 @@ const Login = () => {
                   Sign in to your account or create a new one to get started.
                 </p>
               </div>
-              
-              <AuthForm />
-              
+
+              <AuthProvider>
+                <AuthForm />
+              </AuthProvider>
+
               <div className="text-center mt-8">
                 <p className="text-sm text-gray-500">
                   By continuing, you agree to Omniwhey's{" "}
@@ -42,11 +44,11 @@ const Login = () => {
                 </p>
               </div>
             </div>
-            
+
             <div className="hidden md:block w-full max-w-md">
               <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-md">
                 <h3 className="text-xl font-semibold mb-4">Why students love Omniwhey</h3>
-                
+
                 <ul className="space-y-4">
                   <li className="flex gap-3">
                     <div className="bg-brand-purple-light/20 rounded-full p-1">
@@ -60,7 +62,7 @@ const Login = () => {
                       <p className="text-sm text-gray-500">Receive comprehensive feedback on your homework</p>
                     </div>
                   </li>
-                  
+
                   <li className="flex gap-3">
                     <div className="bg-brand-purple-light/20 rounded-full p-1">
                       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-brand-purple">
@@ -73,7 +75,7 @@ const Login = () => {
                       <p className="text-sm text-gray-500">No more waiting days for teacher feedback</p>
                     </div>
                   </li>
-                  
+
                   <li className="flex gap-3">
                     <div className="bg-brand-purple-light/20 rounded-full p-1">
                       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-brand-purple">
@@ -86,7 +88,7 @@ const Login = () => {
                       <p className="text-sm text-gray-500">Understand where you went wrong and how to improve</p>
                     </div>
                   </li>
-                  
+
                   <li className="flex gap-3">
                     <div className="bg-brand-purple-light/20 rounded-full p-1">
                       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-brand-purple">
@@ -105,7 +107,7 @@ const Login = () => {
           </div>
         </div>
       </main>
-      
+
       <Footer />
     </div>
   );
