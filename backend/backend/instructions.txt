@@ -1,0 +1,128 @@
+We are creating the backend API for a web service that corrects students assignments using the openai API and anthropic api.
+We are NOT working with any frontend elements.
+
+The web app includes these functionalities:
+1. Assignment upload
+2. Assignment correction using openai/anthropic api
+3. Scores are given to the students using a currency (gold-coins)
+4. Corrected assignments and cold coins are stored in a postgres database.
+5. Various database queries to get user/teacher/assignment data to the frontend.
+
+
+The flow of when a Teacher uploads a new assignment:
+1. Teacher writes and uploads the assignment-instructions in txt format.
+2. The assignment-instrutions are sent to our backend.
+3. The assignment-instructions are sent to the openai api to create a dynamic correction-template for this assignment in particular.
+4. The correction-template and the assignment-instructions are posted to the database.
+5. Done
+
+The flow of turning in an assignment:
+1. Student uploads their assignment in txt format.
+2. The student-written assignment is sent to our backend.
+3. We do a database get to retrieve the corresponding assignment-instructions.
+4. We send the student-assignment and the assignment-instructions to the anthropic api to get the total score of the assignment. (Max score is always defined in the assignment-instructions written by teacher)
+5. The student-written assignment and their total score are posted to the database.
+6. We return the total score to the frontend.
+
+
+Other important things:
+- Each API call to either anthropic or openai needs to have their own prompt-instructions. These prompt-instructions should describe exactly what should be done in this step.
+- Before each api call, we concatenate the above mentioned instructions with the actual data provided from the endpoint.
+- We should divide the endpoints into two parts: Students and teachers.
+- Students are allowed to turn in assignments only once.
+- Students are allowed to download the assignment-instructions.
+- Students are allowed to view their total scores. Both from individual assignments but also the total amount for all assignments.
+- Teachers are allowed to do everything a student can with the exception of uploading an assignment.
+- Teachers are allowed to upload assignment-instructions.
+- Teachers are allowed to query the database for: Student scores, student-assignments, assignment-instructions, correction-templates, teacher-assignments
+
+Examples of how we could structure the database:
+1. The students table:
+    - id (PK)
+    - name
+    - password
+    - total_gold_coins
+    - students_assignments (FK to a junction table)
+    - created_at
+    - updated_at
+2. The assignments table:
+    - id (PK)
+    - assignment_instructions (the instructions written by the teacher)
+    - max_score
+    - correction_template (the template written by openai, used for the anthropic api)
+    - students_assignments (FK to a junction table)
+    - teacher_id (FK to the teachers table)
+    - created_at
+    - updated_at
+    - deadline
+3. The students_assignments junction table:
+    - id (PK)
+    - student_id (FK to the students table)
+    - assignment_id (FK to the assignments table)
+    - score
+    - created_at
+4. The teachers table:
+    - id (PK)
+    - name
+    - email
+    - created_at
+    - updated_at
+
+You are free to alter the database if it's needed to fit the project better.
+
+
+User management and Authentication:
+- Students can register using email verification.
+- Teachers can then choose students registered and add them to their class.
+- Teachers can delete students from their class or from the database entirely.
+- We authenticate teachers and students using database tokens (one query each endpoint request)
+- The teachers are the admins of the platform. Students are not allowed to be admins.
+- No password policies right now.
+
+Database design:
+- We most definately need to add more tables and fields. The proposed structure above is only a starting point to get the ball rolling.
+- Soft deletion might need to be added to some of the tables.
+- Student submitted assignments are not allowed to be changed after they are uploaded. No need to track history.
+- Add database constraints where it makes sense. We student-email should as an exmple be unique. Follow best practice.
+- Lets store the assignments directly in the database. The frontend only allows for txt-files and will only send raw text to the endpoints.
+- Files are not stored. We store the contents of the file in the database.
+
+Assignment workflow:
+- Teachers may modify the assignment up until the first student has turned in their assignment.
+- Students are allowed to turn in assignments only before the deadline.
+- No manual reviewing needs to be done for the assignments. After the AI has graded the assignment it's uploaded directly to the database. Teachers may review this afterwards and edit (in case the AI made a mistake). But the general plan is to make this process as autonomous as possible with very little human interaction for grading the assignments.
+- Assignments do not have categories. They are however linked to the teacher that created them.
+- Teachers should be able to add a feedback comment to the students assignment after AI grading.
+- Late submissions are not allowed. If the deadline has passed we will be removing it fromthe frontend. We are also validating the current dateagainst the deadline timestamp in the database for each assignment.
+
+AI Integration:
+- We are using GPT-4o for the openai api.
+- We are using Claude 3.7 Sonnet for the anthropic api.
+- We need rate limiting for all the endpoints.
+- If the Open AI is not available, use anthropic for both and vice versa.
+- If the AI service returns an error, try the other AI service.
+- If all AI services fail, return an error to the frontend and don't post anything to the database.
+- You may write prompt instructions for the AI interactions. I will then re-write them for optimal performance. Make sure to separate them from the code so that they are easy to edit.
+- We only store the final output of the AI response. It is however important to notice that the AI response might not always give back the exact answer we want. For example, when propting an LLM to return a number we cannot simply wrap that response in 'int()'. This would most definately result in an error. Therefore we need an entire validation pipeline to validate the final output of the AI grading. We are only looking for a number here. We can use regex patterns to extract this. We can also set a token limit for the API call to ensure the response does not include a bunch of other text, further increasing the chance of the AI only returning an integer.
+- Teachers are using their own API keys. Cost monitoring will be done by them using openai and anthropics own services.
+
+Scoring system:
+- The gold coins does not have any additional finctionality. Its the same thing as a regular score.
+- Gold coins are used by the teacher as an indication on how much extra work the student puts in. The amount of gold coins come into play when the teacher is grading the students for the entire course.
+- Gold coins are integers, not floats.
+- In every assignment-isntruction (written by teacher) the total amount of gold coins available is very clearly defined.
+- Each assignment-isntruction are divided into segments. Its very clear in the segments how the student can earn gold coins, what they need to accomplish with their text.
+- Coins never expire. Earned coins are stored in the database until manually removed.
+- No extra functionality is needed for the gold coin system. No achievements, no bonus mechanisms.
+- The total amount of gold coins available and what each gold coin requires are always present in the assignment-instructions.
+
+Technical implementation:
+- API documentation is important. It needs to be easy for a human to visit this codebase and look up whatever they need to see in case we need to make ay manual fixes later.
+- We do not need to implement caching at this stage.
+- If an error unrelated to the AI grading API calls, we should return HTTPExceptions to the frontend and also log the error with a logger.
+- The entire AI-grading process should be a background task. No other tasks needs to be background tasks.
+- The logger should log on INFO-level during development. I will manually fix this before deployment.
+- Logger needs to store log-files in /logs/. Lets store 10MB files and rotate new files each day.
+- All endpoints needs to be rate limited. This needs to be dynamic. AI API related endpoints in perticular needs to have a lower limit.
+
+

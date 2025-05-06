@@ -1,0 +1,104 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+venv/
+env/
+ENV/
+backend/venv/
+backend/env/
+
+# Environment Variables
+.env
+.venv
+*.env
+backend/.env
+
+# Logs
+logs/
+*.log
+backend/logs/
+
+# Test artifacts
+token.txt
+assignment_id.txt
+backend/tests/token.txt
+backend/tests/assignment_id.txt
+
+# Database
+*.sqlite
+*.sqlite3
+*.db
+
+# FastAPI
+.pytest_cache/
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+.mypy_cache/
+.coverage
+htmlcov/
+.hypothesis/
+coverage.xml
+*.cover
+
+# Frontend
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+/frontend/node_modules
+/frontend/build
+/frontend/dist
+
+# OS specific
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Python cache directories
+*/__pycache__/
+backend/*/__pycache__/
+backend/*/*/__pycache__/
+backend/*/*/*/__pycache__/
+
+# Alembic migration versions
+backend/alembic/versions/*.py
+!backend/alembic/versions/README.md
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# PyCharm
+*.iml
+
+# Poetry
+poetry.lock
