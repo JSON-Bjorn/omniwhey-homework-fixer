@@ -1,4 +1,5 @@
 from typing import List, Optional
+import uuid
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
 
 from app.models.user import UserRole
@@ -30,7 +31,7 @@ class UserUpdate(BaseModel):
 class UserInDBBase(UserBase):
     """Base user DB schema."""
 
-    id: int
+    id: uuid.UUID
     is_active: bool
     is_verified: bool
     total_gold_coins: Optional[int] = 0
@@ -50,23 +51,10 @@ class UserInDB(UserInDBBase):
     hashed_password: str
 
 
-class Token(BaseModel):
-    """Schema for JWT token."""
-
-    access_token: str
-    token_type: str
-
-
-class TokenPayload(BaseModel):
-    """Schema for token payload."""
-
-    sub: Optional[str] = None
-
-
 class TeacherStudentAdd(BaseModel):
     """Schema for adding students to teacher's class."""
 
-    student_ids: List[int]
+    student_ids: List[uuid.UUID]
 
 
 class EmailVerification(BaseModel):

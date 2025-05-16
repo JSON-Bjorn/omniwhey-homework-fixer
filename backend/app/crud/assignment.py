@@ -1,7 +1,9 @@
-from typing import Any, Dict, List, Optional, Union, Tuple
+from typing import Any, Dict, List, Optional, Union, Tuple, Sequence
+import uuid
 from datetime import datetime
-from sqlalchemy import select, func, and_, or_, text
+from sqlalchemy import select, func, and_, or_, text, join
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.models import Assignment, StudentAssignment, User, UserRole
 from app.crud import user as user_crud
@@ -25,9 +27,8 @@ async def get_assignment(
     Returns:
         Assignment object or None if not found
     """
-    result = await db.execute(
-        select(Assignment).where(Assignment.id == assignment_id)
-    )
+    stmt = select(Assignment).where(Assignment.id == assignment_id)
+    result = await db.execute(stmt)
     return result.scalar_one_or_none()
 
 
@@ -36,9 +37,9 @@ async def get_assignments(
     *,
     skip: int = 0,
     limit: int = 100,
-    teacher_id: Optional[int] = None,
+    teacher_id: Optional[uuid.UUID] = None,
     include_past_deadline: bool = True,
-) -> List[Assignment]:
+) -> Sequence[Assignment]:
     """
     Get multiple assignments with filtering options.
 
@@ -52,22 +53,22 @@ async def get_assignments(
     Returns:
         List of Assignment objects
     """
-    query = select(Assignment).offset(skip).limit(limit)
+    stmt = select(Assignment).offset(skip).limit(limit)
 
     if teacher_id:
-        query = query.where(Assignment.teacher_id == teacher_id)
+        stmt = stmt.where(Assignment.teacher_id == teacher_id)
 
     if not include_past_deadline:
-        query = query.where(Assignment.deadline >= datetime.now())
+        stmt = stmt.where(Assignment.deadline >= datetime.now())
 
-    query = query.order_by(Assignment.deadline)
+    stmt = stmt.order_by(Assignment.deadline)
 
-    result = await db.execute(query)
+    result = await db.execute(stmt)
     return result.scalars().all()
 
 
 async def create_assignment(
-    db: AsyncSession, *, obj_in: AssignmentCreate, teacher_id: int
+    db: AsyncSession, *, obj_in: AssignmentCreate, teacher_id: uuid.UUID
 ) -> Assignment:
     """
     Create a new assignment.
@@ -126,21 +127,28 @@ async def update_assignment(
 
 async def delete_assignment(
     db: AsyncSession, *, assignment_id: int
-) -> Optional[Assignment]:
+) -> Assignment:
     """
     Delete an assignment.
 
     Args:
         db: Database session
-        assignment_id: Assignment ID
+        assignment_id: ID of the assignment to delete
 
     Returns:
-        Deleted Assignment object or None if not found
+        The deleted Assignment object
+
+    Raises:
+        ValueError: If the assignment doesn't exist
     """
+    # Get the assignment first
     assignment = await get_assignment(db, assignment_id)
-    if assignment:
-        await db.delete(assignment)
-        await db.commit()
+    if not assignment:
+        raise ValueError(f"Assignment with id {assignment_id} not found")
+
+    await db.delete(assignment)
+    await db.commit()
+
     return assignment
 
 
@@ -148,28 +156,32 @@ async def check_can_modify_assignment(
     db: AsyncSession, assignment_id: int
 ) -> bool:
     """
-    Check if an assignment can be modified.
-
-    An assignment can be modified only if no student has submitted a solution yet.
+    Check if an assignment can be modified based on business rules.
+    Currently, an assignment cannot be modified if it has student submissions.
 
     Args:
         db: Database session
-        assignment_id: Assignment ID
+        assignment_id: Assignment ID to check
 
     Returns:
         True if assignment can be modified, False otherwise
     """
-    # Check if any student submissions exist
-    query = select(func.count()).where(
-        StudentAssignment.assignment_id == assignment_id
+    # Use the already imported StudentAssignment model
+
+    # Check if there are any student submissions for this assignment
+    stmt = (
+        select(func.count())
+        .select_from(StudentAssignment)
+        .where(StudentAssignment.assignment_id == assignment_id)
     )
-    result = await db.execute(query)
+    result = await db.execute(stmt)
     count = result.scalar_one()
+
     return count == 0
 
 
 async def get_student_assignment(
-    db: AsyncSession, assignment_id: int, student_id: int
+    db: AsyncSession, assignment_id: int, student_id: uuid.UUID
 ) -> Optional[StudentAssignment]:
     """
     Get a student's assignment submission.
@@ -193,13 +205,13 @@ async def get_student_assignment(
 async def get_student_assignments(
     db: AsyncSession,
     *,
-    student_id: int,
+    student_id: uuid.UUID,
     skip: int = 0,
     limit: int = 100,
     include_past_deadline: bool = True,
 ) -> List[Tuple[StudentAssignment, Assignment]]:
     """
-    Get all assignment submissions for a student.
+    Get a student's assignment submissions with their corresponding assignments.
 
     Args:
         db: Database session
@@ -211,20 +223,23 @@ async def get_student_assignments(
     Returns:
         List of tuples (StudentAssignment, Assignment)
     """
-    query = (
+    stmt = (
         select(StudentAssignment, Assignment)
-        .join(Assignment, StudentAssignment.assignment_id == Assignment.id)
+        .join(
+            Assignment,
+            StudentAssignment.assignment_id == Assignment.id,
+        )
         .where(StudentAssignment.student_id == student_id)
         .offset(skip)
         .limit(limit)
     )
 
     if not include_past_deadline:
-        query = query.where(Assignment.deadline >= datetime.now())
+        stmt = stmt.where(Assignment.deadline >= datetime.now())
 
-    query = query.order_by(Assignment.deadline)
+    stmt = stmt.order_by(Assignment.deadline)
 
-    result = await db.execute(query)
+    result = await db.execute(stmt)
     return result.all()
 
 
@@ -232,7 +247,7 @@ async def get_assignment_submissions(
     db: AsyncSession, *, assignment_id: int, skip: int = 0, limit: int = 100
 ) -> List[Tuple[StudentAssignment, User]]:
     """
-    Get all student submissions for an assignment.
+    Get all submissions for an assignment with student information.
 
     Args:
         db: Database session
@@ -243,20 +258,26 @@ async def get_assignment_submissions(
     Returns:
         List of tuples (StudentAssignment, User)
     """
-    query = (
+    stmt = (
         select(StudentAssignment, User)
-        .join(User, StudentAssignment.student_id == User.id)
+        .join(
+            User,
+            StudentAssignment.student_id == User.id,
+        )
         .where(StudentAssignment.assignment_id == assignment_id)
         .offset(skip)
         .limit(limit)
     )
 
-    result = await db.execute(query)
+    result = await db.execute(stmt)
     return result.all()
 
 
 async def create_student_assignment(
-    db: AsyncSession, *, obj_in: StudentAssignmentCreate, student_id: int
+    db: AsyncSession,
+    *,
+    obj_in: StudentAssignmentCreate,
+    student_id: uuid.UUID,
 ) -> StudentAssignment:
     """
     Create a new student assignment submission.
@@ -323,25 +344,26 @@ async def teacher_update_student_assignment(
     return db_obj
 
 
-async def get_student_gold_coins(db: AsyncSession, student_id: int) -> int:
+async def get_student_gold_coins(
+    db: AsyncSession, student_id: uuid.UUID
+) -> int:
     """
-    Calculate total gold coins for a student from all assignments.
+    Get the total gold coins a student has earned across all assignments.
 
     Args:
         db: Database session
         student_id: Student user ID
 
     Returns:
-        Total gold coins
+        Total gold coins earned
     """
-    query = select(func.sum(StudentAssignment.score)).where(
-        StudentAssignment.student_id == student_id,
-        StudentAssignment.score.isnot(None),
-    )
+    stmt = select(
+        func.sum(StudentAssignment.score).label("total_score")
+    ).where(StudentAssignment.student_id == student_id)
 
-    result = await db.execute(query)
-    total = result.scalar_one_or_none()
-    return total or 0
+    result = await db.execute(stmt)
+    total_score = result.scalar_one_or_none() or 0
+    return total_score
 
 
 async def update_student_assignment_score(
@@ -371,3 +393,38 @@ async def update_student_assignment_score(
         await db.refresh(student_assignment)
 
     return student_assignment
+
+
+async def update_assignment_deadline(
+    db: AsyncSession, *, assignment_id: int, deadline: datetime
+) -> Assignment:
+    """
+    Update an assignment's deadline.
+
+    Args:
+        db: Database session
+        assignment_id: ID of the assignment to update
+        deadline: New deadline datetime
+
+    Returns:
+        Updated Assignment object
+
+    Raises:
+        ValueError: If the assignment doesn't exist
+    """
+    # Get the assignment first
+    assignment = await get_assignment(db, assignment_id)
+    if not assignment:
+        raise ValueError(f"Assignment with id {assignment_id} not found")
+
+    # Update the deadline
+    assignment.deadline = deadline
+
+    # Update the modified timestamp
+    assignment.updated_at = datetime.now()
+
+    # Save to database
+    await db.commit()
+    await db.refresh(assignment)
+
+    return assignment

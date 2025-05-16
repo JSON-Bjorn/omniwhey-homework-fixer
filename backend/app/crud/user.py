@@ -1,33 +1,28 @@
-from typing import Any, Dict, Optional, List, Union
+from typing import Any, Dict, Optional, List, Union, Sequence
+import uuid
+import logging
 from sqlalchemy import (
     select,
     update,
     delete,
     and_,
     insert,
-    join,
-    table,
-    column,
+    Table,
+    func,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.sql import Select
 from sqlalchemy.orm import selectinload
 
 from app.core.security import get_password_hash, verify_password
-from app.models import User, UserRole
+from app.models import User, UserRole, teacher_student_association
 from app.schemas.user import UserCreate, UserUpdate
+from app.utils.secure_logging import censor_email, censor_uuid, censor_name
 
-# Define the association table structure for queries
-teacher_student_assoc = table(
-    "teacher_student_associations",
-    column("teacher_id"),
-    column("student_id"),
-    column("created_at"),
-    column("updated_at"),
-)
+# Set up logger
+logger = logging.getLogger(__name__)
 
 
-async def get_user(db: AsyncSession, user_id: int) -> Optional[User]:
+async def get_user(db: AsyncSession, user_id: uuid.UUID) -> Optional[User]:
     """
     Get a user by ID.
 
@@ -38,8 +33,16 @@ async def get_user(db: AsyncSession, user_id: int) -> Optional[User]:
     Returns:
         User model or None if not found
     """
-    result = await db.execute(select(User).where(User.id == user_id))
-    return result.scalar_one_or_none()
+    stmt = select(User).where(User.id == user_id)
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+
+    if user:
+        logger.debug(f"Retrieved user with ID: {censor_uuid(user_id)}")
+    else:
+        logger.debug(f"User not found with ID: {censor_uuid(user_id)}")
+
+    return user
 
 
 async def get_user_by_email(db: AsyncSession, email: str) -> Optional[User]:
@@ -53,8 +56,16 @@ async def get_user_by_email(db: AsyncSession, email: str) -> Optional[User]:
     Returns:
         User object or None if not found
     """
-    result = await db.execute(select(User).where(User.email == email))
-    return result.scalar_one_or_none()
+    stmt = select(User).where(func.lower(User.email) == func.lower(email))
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+
+    if user:
+        logger.debug(f"Retrieved user with email: {censor_email(email)}")
+    else:
+        logger.debug(f"User not found with email: {censor_email(email)}")
+
+    return user
 
 
 async def get_users(
@@ -63,7 +74,7 @@ async def get_users(
     skip: int = 0,
     limit: int = 100,
     role: Optional[UserRole] = None,
-) -> List[User]:
+) -> Sequence[User]:
     """
     Get multiple users with filtering options.
 
@@ -76,13 +87,18 @@ async def get_users(
     Returns:
         List of User objects
     """
-    query = select(User).offset(skip).limit(limit)
+    stmt = select(User).offset(skip).limit(limit)
 
     if role:
-        query = query.where(User.role == role)
+        stmt = stmt.where(User.role == role)
 
-    result = await db.execute(query)
-    return result.scalars().all()
+    result = await db.execute(stmt)
+    users = result.scalars().all()
+
+    logger.info(
+        f"Retrieved {len(users)} users with skip={skip}, limit={limit}"
+    )
+    return users
 
 
 async def create_user(db: AsyncSession, *, obj_in: UserCreate) -> User:
@@ -96,17 +112,23 @@ async def create_user(db: AsyncSession, *, obj_in: UserCreate) -> User:
     Returns:
         Created User object
     """
+    logger.info(f"Creating new user with email: {censor_email(obj_in.email)}")
+
     db_obj = User(
         email=obj_in.email,
         name=obj_in.name,
         hashed_password=get_password_hash(obj_in.password),
         role=obj_in.role,
-        is_active=True,
+        is_active=False,  # Default to inactive until email is verified
         is_verified=False,  # Email verification will be required
     )
     db.add(db_obj)
     await db.commit()
     await db.refresh(db_obj)
+
+    logger.info(
+        f"User created successfully: ID={censor_uuid(db_obj.id)}, name={censor_name(db_obj.name)}"
+    )
     return db_obj
 
 
@@ -132,6 +154,22 @@ async def update_user(
     else:
         update_data = obj_in.model_dump(exclude_unset=True)
 
+    # Log the update operation with censored data
+    log_data = {}
+    for key, value in update_data.items():
+        if key == "email":
+            log_data[key] = censor_email(value)
+        elif key == "name":
+            log_data[key] = censor_name(value)
+        elif key == "password":
+            log_data[key] = "********"
+        else:
+            log_data[key] = value
+
+    logger.info(
+        f"Updating user ID={censor_uuid(db_obj.id)} with attributes: {log_data}"
+    )
+
     if update_data.get("password"):
         hashed_password = get_password_hash(update_data["password"])
         del update_data["password"]
@@ -143,10 +181,14 @@ async def update_user(
     db.add(db_obj)
     await db.commit()
     await db.refresh(db_obj)
+
+    logger.info(f"User ID={censor_uuid(db_obj.id)} updated successfully")
     return db_obj
 
 
-async def delete_user(db: AsyncSession, *, user_id: int) -> Optional[User]:
+async def delete_user(
+    db: AsyncSession, *, user_id: uuid.UUID
+) -> Optional[User]:
     """
     Delete a user.
 
@@ -157,10 +199,14 @@ async def delete_user(db: AsyncSession, *, user_id: int) -> Optional[User]:
     Returns:
         Deleted User object or None if not found
     """
+    logger.info(f"Deleting user with ID: {censor_uuid(user_id)}")
+
     user = await get_user(db, user_id)
     if user:
         await db.delete(user)
         await db.commit()
+
+    logger.info(f"User ID={censor_uuid(user_id)} deleted successfully")
     return user
 
 
@@ -178,19 +224,29 @@ async def authenticate_user(
     Returns:
         Authenticated User object or None if authentication fails
     """
+    logger.debug(f"Authenticating user with email: {censor_email(email)}")
+
     user = await get_user_by_email(db, email=email)
     if not user:
+        logger.warning(
+            f"Authentication failed: User not found with email: {censor_email(email)}"
+        )
         return None
     if not verify_password(password, user.hashed_password):
+        logger.warning(
+            f"Authentication failed: Invalid password for user ID: {censor_uuid(user.id)}"
+        )
         return None
+
+    logger.info(f"User {censor_uuid(user.id)} authenticated successfully")
     return user
 
 
 async def verify_user_email(
-    db: AsyncSession, *, user_id: int
+    db: AsyncSession, *, user_id: uuid.UUID
 ) -> Optional[User]:
     """
-    Mark a user's email as verified.
+    Mark a user's email as verified and activate their account.
 
     Args:
         db: Database session
@@ -202,6 +258,7 @@ async def verify_user_email(
     user = await get_user(db, user_id)
     if user:
         user.is_verified = True
+        user.is_active = True
         db.add(user)
         await db.commit()
         await db.refresh(user)
@@ -209,7 +266,7 @@ async def verify_user_email(
 
 
 async def update_gold_coins(
-    db: AsyncSession, *, user_id: int, gold_coins: int
+    db: AsyncSession, *, user_id: uuid.UUID, gold_coins: int
 ) -> Optional[User]:
     """
     Update a student's gold coins.
@@ -232,7 +289,7 @@ async def update_gold_coins(
 
 
 async def add_student_to_teacher(
-    db: AsyncSession, *, teacher_id: int, student_id: int
+    db: AsyncSession, *, teacher_id: uuid.UUID, student_id: uuid.UUID
 ) -> bool:
     """
     Add a student to a teacher's class.
@@ -243,40 +300,30 @@ async def add_student_to_teacher(
         student_id: Student user ID
 
     Returns:
-        True if the student was added, False otherwise
+        True if successful, False otherwise
     """
-    teacher = await get_user(db, teacher_id)
-    student = await get_user(db, student_id)
-
-    if not teacher or not student:
-        return False
-
-    if teacher.role != UserRole.TEACHER or student.role != UserRole.STUDENT:
-        return False
-
-    # Check if the relation already exists
-    query = select(teacher_student_assoc).where(
-        teacher_student_assoc.c.teacher_id == teacher_id,
-        teacher_student_assoc.c.student_id == student_id,
+    # Check if the association already exists
+    stmt = select(teacher_student_association).where(
+        and_(
+            teacher_student_association.c.teacher_id == teacher_id,
+            teacher_student_association.c.student_id == student_id,
+        )
     )
-    result = await db.execute(query)
-    existing_relation = result.scalar_one_or_none()
+    result = await db.execute(stmt)
+    if result.first() is not None:
+        return False  # Association already exists
 
-    if existing_relation:
-        return True  # Relation already exists
-
-    # Add the relation
-    stmt = insert(teacher_student_assoc).values(
+    # Add the association
+    stmt = insert(teacher_student_association).values(
         teacher_id=teacher_id, student_id=student_id
     )
     await db.execute(stmt)
     await db.commit()
-
     return True
 
 
 async def remove_student_from_teacher(
-    db: AsyncSession, *, teacher_id: int, student_id: int
+    db: AsyncSession, *, teacher_id: uuid.UUID, student_id: uuid.UUID
 ) -> bool:
     """
     Remove a student from a teacher's class.
@@ -289,9 +336,9 @@ async def remove_student_from_teacher(
     Returns:
         True if the relation was deleted, False if not found
     """
-    query = delete(teacher_student_assoc).where(
-        teacher_student_assoc.c.teacher_id == teacher_id,
-        teacher_student_assoc.c.student_id == student_id,
+    query = delete(teacher_student_association).where(
+        teacher_student_association.c.teacher_id == teacher_id,
+        teacher_student_association.c.student_id == student_id,
     )
     result = await db.execute(query)
     await db.commit()
@@ -299,10 +346,14 @@ async def remove_student_from_teacher(
 
 
 async def get_teacher_students(
-    db: AsyncSession, *, teacher_id: int, skip: int = 0, limit: int = 100
-) -> List[User]:
+    db: AsyncSession,
+    *,
+    teacher_id: uuid.UUID,
+    skip: int = 0,
+    limit: int = 100,
+) -> Sequence[User]:
     """
-    Get all students associated with a teacher.
+    Get all students for a teacher.
 
     Args:
         db: Database session
@@ -311,32 +362,34 @@ async def get_teacher_students(
         limit: Maximum number of records to return
 
     Returns:
-        List of Student User objects
+        List of User objects (students)
     """
-    query = (
+    # Use a join to get all students associated with the teacher
+    stmt = (
         select(User)
         .join(
-            teacher_student_assoc,
-            teacher_student_assoc.c.student_id == User.id,
+            teacher_student_association,
+            User.id == teacher_student_association.c.student_id,
         )
-        .where(
-            teacher_student_assoc.c.teacher_id == teacher_id,
-            User.role == UserRole.STUDENT,
-            User.is_active == True,
-        )
+        .where(teacher_student_association.c.teacher_id == teacher_id)
+        .where(User.role == UserRole.STUDENT)
         .offset(skip)
         .limit(limit)
     )
 
-    result = await db.execute(query)
+    result = await db.execute(stmt)
     return result.scalars().all()
 
 
 async def get_student_teachers(
-    db: AsyncSession, *, student_id: int, skip: int = 0, limit: int = 100
-) -> List[User]:
+    db: AsyncSession,
+    *,
+    student_id: uuid.UUID,
+    skip: int = 0,
+    limit: int = 100,
+) -> Sequence[User]:
     """
-    Get all teachers associated with a student.
+    Get all teachers for a student.
 
     Args:
         db: Database session
@@ -345,22 +398,20 @@ async def get_student_teachers(
         limit: Maximum number of records to return
 
     Returns:
-        List of Teacher User objects
+        List of User objects (teachers)
     """
-    query = (
+    # Use a join to get all teachers associated with the student
+    stmt = (
         select(User)
         .join(
-            teacher_student_assoc,
-            teacher_student_assoc.c.teacher_id == User.id,
+            teacher_student_association,
+            User.id == teacher_student_association.c.teacher_id,
         )
-        .where(
-            teacher_student_assoc.c.student_id == student_id,
-            User.role == UserRole.TEACHER,
-            User.is_active == True,
-        )
+        .where(teacher_student_association.c.student_id == student_id)
+        .where(User.role == UserRole.TEACHER)
         .offset(skip)
         .limit(limit)
     )
 
-    result = await db.execute(query)
+    result = await db.execute(stmt)
     return result.scalars().all()

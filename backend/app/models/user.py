@@ -1,5 +1,6 @@
 from typing import List, Optional, TYPE_CHECKING
 import enum
+import uuid
 import datetime
 from sqlalchemy import (
     String,
@@ -11,6 +12,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     func,
+    UUID,
 )
 from sqlalchemy.ext.asyncio import AsyncAttrs
 from sqlalchemy.orm import (
@@ -24,6 +26,7 @@ from app.db.base_class import Base
 
 if TYPE_CHECKING:
     from app.models.assignment import Assignment, StudentAssignment
+    from app.models.token import Token
 
 
 class UserRole(enum.Enum):
@@ -39,13 +42,13 @@ teacher_student_association = Table(
     Base.metadata,
     Column(
         "teacher_id",
-        Integer,
+        UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         primary_key=True,
     ),
     Column(
         "student_id",
-        Integer,
+        UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         primary_key=True,
     ),
@@ -70,6 +73,9 @@ class User(Base):
 
     __tablename__ = "users"
 
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+    )
     email: Mapped[str] = mapped_column(
         String(255), unique=True, index=True, nullable=False
     )
@@ -102,6 +108,11 @@ class User(Base):
         back_populates="teacher",
         foreign_keys="[Assignment.teacher_id]",
         cascade="all, delete-orphan",
+    )
+
+    # Auth tokens relationship
+    tokens: Mapped[List["Token"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
     )
 
     # Teacher-student relationship (many-to-many)

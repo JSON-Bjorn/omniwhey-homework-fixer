@@ -25,6 +25,50 @@ from app.ai.prompts import (
 logger = logging.getLogger(__name__)
 
 
+def create_client_without_proxies(client_class, **kwargs):
+    """
+    Create an API client without passing any problematic parameters.
+
+    Args:
+        client_class: The client class to instantiate (OpenAI or Anthropic)
+        **kwargs: Arguments to pass to the client constructor
+
+    Returns:
+        Instantiated API client with filtered parameters
+    """
+    # Filter out known problematic parameters
+    if "proxies" in kwargs:
+        logger.debug(
+            f"Filtering out 'proxies' parameter from {client_class.__name__} initialization"
+        )
+        del kwargs["proxies"]
+
+    # Additional safety check - filter out any kwargs that aren't accepted by the constructor
+    try:
+        import inspect
+
+        valid_params = set(
+            inspect.signature(client_class.__init__).parameters.keys()
+        )
+        # Filter out self (always the first parameter)
+        if "self" in valid_params:
+            valid_params.remove("self")
+
+        # Filter out parameters that aren't in the signature
+        for param in list(kwargs.keys()):
+            if param not in valid_params:
+                logger.debug(
+                    f"Filtering out unexpected parameter '{param}' from {client_class.__name__} initialization"
+                )
+                del kwargs[param]
+    except Exception as e:
+        logger.warning(
+            f"Could not inspect {client_class.__name__} signature: {e}"
+        )
+
+    return client_class(**kwargs)
+
+
 class AIService:
     """Service for interacting with AI APIs."""
 
@@ -36,31 +80,27 @@ class AIService:
     def _setup_openai(self) -> Optional[OpenAI]:
         """Set up OpenAI client if API key is available."""
         if settings.OPENAI_API_KEY:
-            return OpenAI(api_key=settings.OPENAI_API_KEY)
+            try:
+                # Use wrapper function to filter out problematic parameters
+                return create_client_without_proxies(
+                    OpenAI, api_key=settings.OPENAI_API_KEY
+                )
+            except Exception as e:
+                logger.error(f"Failed to initialize OpenAI client: {e}")
+                return None
         return None
 
     def _setup_anthropic(self) -> Optional[Anthropic]:
         """Set up Anthropic client if API key is available."""
         if settings.ANTHROPIC_API_KEY:
-            # Create a client without any proxies to avoid the Client.__init__() error
             try:
-                import httpx
-
-                # Create a custom HTTP client without proxies
-                http_client = httpx.Client(timeout=60.0)
-                return Anthropic(
-                    api_key=settings.ANTHROPIC_API_KEY,
-                    http_client=http_client,
+                # Use wrapper function to filter out problematic parameters
+                return create_client_without_proxies(
+                    Anthropic, api_key=settings.ANTHROPIC_API_KEY
                 )
             except Exception as e:
                 logger.error(f"Failed to initialize Anthropic client: {e}")
-                # Fallback to basic initialization
-                try:
-                    return Anthropic(api_key=settings.ANTHROPIC_API_KEY)
-                except Exception as e:
-                    logger.error(
-                        f"Failed to initialize Anthropic client with fallback: {e}"
-                    )
+                return None
         return None
 
     @retry(

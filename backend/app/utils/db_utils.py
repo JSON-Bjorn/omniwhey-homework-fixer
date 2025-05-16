@@ -9,17 +9,29 @@ from pathlib import Path
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from passlib.context import CryptContext
+import logging
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # Add the backend directory to the path for imports
 backend_path = Path(__file__).resolve().parent.parent.parent
 if str(backend_path) not in sys.path:
     sys.path.append(str(backend_path))
 
-from config.database import DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME, docker_mode
+from config.database import (
+    DB_USER,
+    DB_PASSWORD,
+    DB_HOST,
+    DB_PORT,
+    DB_NAME,
+    docker_mode,
+)
 from models.models import Base, User
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+logger = logging.getLogger(__name__)
 
 
 def init_db():
@@ -31,7 +43,9 @@ def init_db():
             return _init_db_local()
     except Exception as e:
         print(f"Error initializing database: {e}")
-        print("Make sure PostgreSQL is running on your local machine or in Docker")
+        print(
+            "Make sure PostgreSQL is running on your local machine or in Docker"
+        )
         return False
 
 
@@ -179,7 +193,9 @@ def _init_db_local():
         cursor = conn.cursor()
 
         # Check if database exists
-        cursor.execute(f"SELECT 1 FROM pg_database WHERE datname = '{DB_NAME}'")
+        cursor.execute(
+            f"SELECT 1 FROM pg_database WHERE datname = '{DB_NAME}'"
+        )
         exists = cursor.fetchone()
 
         if not exists:
@@ -309,7 +325,9 @@ def _seed_db_docker(email, hashed_password):
         ]
 
         with open(sql_file, "r") as f:
-            result = subprocess.run(cmd, stdin=f, capture_output=True, text=True)
+            result = subprocess.run(
+                cmd, stdin=f, capture_output=True, text=True
+            )
 
         # Clean up temp file
         os.remove(sql_file)
@@ -361,3 +379,53 @@ def _seed_db_local(email, hashed_password):
     except Exception as e:
         print(f"Error seeding local database: {e}")
         return False
+
+
+async def check_database_connection(db: AsyncSession) -> bool:
+    """
+    Check if the database connection is working properly.
+
+    Args:
+        db: An active database session
+
+    Returns:
+        True if the connection is working, False otherwise
+    """
+    try:
+        # Simple query to check if connection works
+        query = text("SELECT 1")
+        result = await db.execute(query)
+        return result.scalar_one() == 1
+    except Exception as e:
+        logger.error(f"Database connection check failed: {str(e)}")
+        return False
+
+
+async def get_connection_pool_stats(db: AsyncSession) -> dict:
+    """
+    Get statistics about the connection pool.
+
+    Args:
+        db: An active database session
+
+    Returns:
+        Dictionary with connection pool statistics
+    """
+    try:
+        # Access the engine used by this session
+        engine = db.get_bind()
+        pool = engine.pool
+
+        stats = {
+            "size": pool.size(),
+            "checkedin": pool.checkedin(),
+            "checkedout": pool.checkedout(),
+            "overflow": pool.overflow(),
+            "checkedout_overflow": pool.checkedout_overflow(),
+        }
+
+        logger.info(f"Connection pool stats: {stats}")
+        return stats
+    except Exception as e:
+        logger.error(f"Failed to get connection pool stats: {str(e)}")
+        return {}

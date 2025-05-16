@@ -1,14 +1,18 @@
 from typing import Annotated, AsyncGenerator, Optional
+import uuid
+import logging
 from fastapi import Depends, HTTPException, status
-from jose import JWTError, jwt
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from fastapi.security import OAuth2PasswordBearer
 
 from app.core.config import settings
-from app.core.security import ALGORITHM
 from app.db.session import get_db
 from app.models import User, UserRole
+from app.crud import token as token_crud
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 # OAuth2 token bearer scheme
 oauth2_scheme = OAuth2PasswordBearer(
@@ -23,7 +27,7 @@ async def get_current_user(
     Validates the token and returns the current user.
 
     Args:
-        token: JWT token from the Authorization header
+        token: Database token from the Authorization header
         db: Database session
 
     Returns:
@@ -38,24 +42,32 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
+    # Validate token and get associated token record
+    db_token = await token_crud.validate_token(db, token)
+    if db_token is None:
+        logger.warning(f"Authentication failed: Invalid or expired token")
+        raise credentials_exception
+
     try:
-        payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[ALGORITHM]
+        # Get user from database
+        stmt = select(User).where(
+            User.id == db_token.user_id, User.is_active == True
         )
-        user_id: str = payload.get("sub")
-        if user_id is None:
+        result = await db.execute(stmt)
+        user = result.scalar_one_or_none()
+
+        if user is None:
+            logger.warning(
+                f"Authentication failed: User {db_token.user_id} not found or inactive"
+            )
             raise credentials_exception
-    except JWTError:
+
+        logger.debug(f"User {user.id} authenticated successfully")
+        return user
+
+    except Exception as e:
+        logger.error(f"Error during user authentication: {str(e)}")
         raise credentials_exception
-
-    stmt = select(User).where(User.id == int(user_id), User.is_active == True)
-    result = await db.execute(stmt)
-    user = result.scalar_one_or_none()
-
-    if user is None:
-        raise credentials_exception
-
-    return user
 
 
 async def get_current_active_user(

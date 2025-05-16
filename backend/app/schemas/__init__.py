@@ -3,8 +3,6 @@ from app.schemas.user import (
     UserCreate,
     UserUpdate,
     UserInDB,
-    Token,
-    TokenPayload,
     TeacherStudentAdd,
     EmailVerification,
 )
@@ -16,6 +14,19 @@ from app.schemas.assignment import (
     StudentAssignmentCreate,
     StudentAssignmentTeacherUpdate,
     StudentAssignmentWithDetails,
+    TemplateGenerationResponse,
+    TemplateApprovalRequest,
+)
+from app.schemas.token import (
+    Token,
+    TokenCreate,
+    TokenInDB,
+    TokenResponse,
+)
+from app.schemas.feature import (
+    Feature,
+    FeatureCreate,
+    FeatureUpdate,
 )
 
 # Re-export for easier importing
@@ -24,8 +35,6 @@ __all__ = [
     "UserCreate",
     "UserUpdate",
     "UserInDB",
-    "Token",
-    "TokenPayload",
     "TeacherStudentAdd",
     "EmailVerification",
     "Assignment",
@@ -35,4 +44,13 @@ __all__ = [
     "StudentAssignmentCreate",
     "StudentAssignmentTeacherUpdate",
     "StudentAssignmentWithDetails",
+    "Token",
+    "TokenCreate",
+    "TokenInDB",
+    "TokenResponse",
+    "TemplateGenerationResponse",
+    "TemplateApprovalRequest",
+    "Feature",
+    "FeatureCreate",
+    "FeatureUpdate",
 ]

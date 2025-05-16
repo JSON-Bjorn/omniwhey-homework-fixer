@@ -1,5 +1,6 @@
 from typing import List, Optional
 from datetime import datetime
+import uuid
 from pydantic import BaseModel, Field, ConfigDict
 
 
@@ -13,7 +14,7 @@ class AssignmentBase(BaseModel):
 
 
 class AssignmentCreate(AssignmentBase):
-    """Schema for creating an assignment."""
+    """Schema for creating a new assignment."""
 
     pass
 
@@ -32,7 +33,7 @@ class AssignmentInDBBase(AssignmentBase):
     """Base assignment DB schema."""
 
     id: int
-    teacher_id: int
+    teacher_id: uuid.UUID
     correction_template: Optional[str] = None
     created_at: datetime
     updated_at: datetime
@@ -41,9 +42,25 @@ class AssignmentInDBBase(AssignmentBase):
 
 
 class Assignment(AssignmentInDBBase):
-    """Schema for assignment response."""
+    """Schema for a complete assignment."""
 
     pass
+
+
+class TemplateGenerationResponse(BaseModel):
+    """Schema for template generation response."""
+
+    assignment_id: int
+    title: str
+    generated_template: str
+    can_be_modified: bool = True
+
+
+class TemplateApprovalRequest(BaseModel):
+    """Schema for template approval request."""
+
+    assignment_id: int
+    correction_template: str
 
 
 class StudentAssignmentBase(BaseModel):
@@ -69,7 +86,7 @@ class StudentAssignmentInDBBase(StudentAssignmentBase):
     """Base student assignment DB schema."""
 
     id: int
-    student_id: int
+    student_id: uuid.UUID
     assignment_id: int
     score: Optional[int] = None
     teacher_feedback: Optional[str] = None
@@ -90,3 +107,28 @@ class StudentAssignmentWithDetails(StudentAssignment):
     assignment: Assignment
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class StudentAssignmentWithGrading(StudentAssignment):
+    """Schema for student assignment with grading details."""
+
+    # Include all fields from StudentAssignment via inheritance
+    # Add additional fields specific to grading
+    student_name: Optional[str] = None
+    student_email: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AssignmentDeadlineExtend(BaseModel):
+    """Schema for extending an assignment deadline."""
+
+    deadline: datetime
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "deadline": "2023-12-31T23:59:59Z",
+            }
+        }
+    )

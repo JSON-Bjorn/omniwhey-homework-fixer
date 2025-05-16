@@ -6,9 +6,13 @@ from sqlalchemy import DateTime, func
 
 
 class Base(AsyncAttrs, DeclarativeBase):
-    """Base class for SQLAlchemy models."""
+    """
+    Base class for SQLAlchemy models.
 
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    Note: The 'id' field is not defined here anymore as it will be defined
+    in the derived classes to allow for different primary key types.
+    """
+
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

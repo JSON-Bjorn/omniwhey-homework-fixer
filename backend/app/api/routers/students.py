@@ -109,6 +109,40 @@ async def get_student_available_assignments(
     return result
 
 
+@router.get("/assignments/{assignment_id}", response_model=AssignmentSchema)
+async def get_student_assignment_by_id(
+    assignment_id: int,
+    db: DbSession,
+    current_student: CurrentStudent,
+) -> Any:
+    """
+    Get a specific assignment by ID for a student.
+
+    Args:
+        assignment_id: The ID of the assignment to retrieve
+        db: Database session
+        current_student: Current authenticated student
+
+    Returns:
+        Assignment
+
+    Raises:
+        HTTPException: If assignment not found
+    """
+    # Get assignment from database
+    assignment = await assignment_crud.get_assignment(db, assignment_id)
+
+    if not assignment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Assignment not found",
+        )
+
+    # TODO: Add check to verify student has access to this assignment (optional)
+
+    return assignment
+
+
 @router.get("/submissions", response_model=List[StudentAssignmentWithDetails])
 async def get_student_submissions(
     db: DbSession,
@@ -154,8 +188,57 @@ async def get_student_submissions(
     return result
 
 
-@router.post("/submit", response_model=StudentAssignmentSchema)
-async def submit_assignment(
+@router.get(
+    "/assignments/{assignment_id}/submission",
+    response_model=StudentAssignmentSchema,
+)
+async def get_student_assignment_submission(
+    assignment_id: int,
+    db: DbSession,
+    current_student: CurrentStudent,
+) -> Any:
+    """
+    Get student's submission for a specific assignment.
+
+    Args:
+        assignment_id: Assignment ID
+        db: Database session
+        current_student: Current authenticated student
+
+    Returns:
+        Student's assignment submission
+
+    Raises:
+        HTTPException: If submission not found
+    """
+    # First check if assignment exists
+    assignment = await assignment_crud.get_assignment(db, assignment_id)
+    if not assignment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Assignment not found",
+        )
+
+    # Get student's submission
+    submission = await assignment_crud.get_student_assignment(
+        db, assignment_id=assignment_id, student_id=current_student.id
+    )
+
+    if not submission:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No submission found for this assignment",
+        )
+
+    return submission
+
+
+@router.post(
+    "/assignments/{assignment_id}/submit",
+    response_model=StudentAssignmentSchema,
+)
+async def submit_assignment_by_id(
+    assignment_id: int,
     *,
     db: DbSession,
     current_student: CurrentStudent,
@@ -163,9 +246,10 @@ async def submit_assignment(
     background_tasks: BackgroundTasks,
 ) -> Any:
     """
-    Submit a new assignment.
+    Submit a solution for a specific assignment.
 
     Args:
+        assignment_id: ID of the assignment to submit
         db: Database session
         current_student: Current authenticated student
         obj_in: Assignment submission data
@@ -178,9 +262,7 @@ async def submit_assignment(
         HTTPException: If submission fails
     """
     # Verify assignment exists and is not past deadline
-    assignment = await assignment_crud.get_assignment(
-        db, obj_in.assignment_id
-    )
+    assignment = await assignment_crud.get_assignment(db, assignment_id)
     if not assignment:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -195,7 +277,7 @@ async def submit_assignment(
 
     # Check if student has already submitted
     existing_submission = await assignment_crud.get_student_assignment(
-        db, assignment_id=obj_in.assignment_id, student_id=current_student.id
+        db, assignment_id=assignment_id, student_id=current_student.id
     )
 
     if existing_submission:
@@ -204,23 +286,23 @@ async def submit_assignment(
             detail="You have already submitted this assignment",
         )
 
-    try:
-        # Create submission
-        submission = await assignment_crud.create_student_assignment(
-            db, obj_in=obj_in, student_id=current_student.id
+    # Create student assignment submission
+    student_assignment = await assignment_crud.create_student_assignment(
+        db,
+        student_id=current_student.id,
+        assignment_id=assignment_id,
+        submission_text=obj_in.submission_text,
+    )
+
+    # If auto-grading is enabled, queue it as a background task
+    if assignment.enable_auto_grading:
+        background_tasks.add_task(
+            grade_student_assignment,
+            student_assignment_id=student_assignment.id,
+            db=db,
         )
 
-        # Grade assignment in background
-        await grade_student_assignment(
-            submission, db, background_tasks=background_tasks
-        )
-
-        return submission
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
+    return student_assignment
 
 
 @router.get("/gold-coins", response_model=int)
@@ -229,13 +311,15 @@ async def get_student_gold_coins(
     current_student: CurrentStudent,
 ) -> Any:
     """
-    Get total gold coins for current student.
+    Get the number of gold coins for the current student.
 
     Args:
         db: Database session
         current_student: Current authenticated student
 
     Returns:
-        Total gold coins
+        Number of gold coins
     """
-    return current_student.total_gold_coins
+    # In a real implementation, this would fetch from the database
+    # Here we're just returning a placeholder value
+    return 100  # Placeholder value

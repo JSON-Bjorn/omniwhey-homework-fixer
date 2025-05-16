@@ -45,6 +45,7 @@ assignment_id.txt
 backend/tests/token.txt
 backend/tests/assignment_id.txt
 
+
 # Database
 *.sqlite
 *.sqlite3

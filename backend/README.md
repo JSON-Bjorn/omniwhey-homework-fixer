@@ -7,7 +7,7 @@ A FastAPI backend for an AI-powered assignment correction system.
 - Assignment upload and management for teachers
 - Assignment submission and scoring for students
 - AI-powered grading using OpenAI and Anthropic APIs
-- Token-based authentication for teachers and students
+- Database token-based authentication for teachers and students
 - Role-based access control
 
 ## Tech Stack
@@ -35,6 +35,30 @@ app/
 ├── utils/               # Utility functions
 └── main.py              # Application entry point
 ```
+
+## API Design
+
+The API follows a strict role-based design pattern for better organization and security:
+
+- `/api/v1/teachers/...` - Endpoints specifically for teacher actions, including:
+  - Managing assignments (create, update, delete, retrieve)
+  - Reviewing and grading student submissions
+  - Managing student-teacher relationships
+  - Generating and approving assignment templates
+
+- `/api/v1/students/...` - Endpoints specifically for student actions, including:
+  - Viewing available assignments
+  - Submitting solutions to assignments
+  - Viewing their own submissions and grades
+  - Accessing gold coins and rewards
+
+- `/api/v1/auth/...` - Authentication endpoints for both roles, including:
+  - Registration for students and teachers
+  - Login/logout functionality
+  - Email verification
+  - Password management
+
+This approach makes permissions and access control more explicit and intuitive, with endpoints grouped by user role for better security and maintainability.
 
 ## Setup & Running
 
@@ -76,11 +100,18 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 ## Authentication
 
-The API uses JWT tokens for authentication. To access protected endpoints:
+The API uses database tokens for authentication. To access protected endpoints:
 
 1. Register a user (student or teacher)
 2. Login to get an access token
 3. Include the token in the `Authorization` header as `Bearer {token}`
+
+Key features of the authentication system:
+- Tokens are stored in the database
+- Tokens can be revoked at any time
+- Token expiration is enforced
+- Login/logout functionality with proper token management
+- Protection against token theft through server-side validation
 
 ## License
 

@@ -1,6 +1,7 @@
 from typing import List, Optional, TYPE_CHECKING
+import uuid
 from datetime import datetime
-from sqlalchemy import String, Integer, ForeignKey, Text, DateTime
+from sqlalchemy import String, Integer, ForeignKey, Text, DateTime, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base_class import Base
@@ -14,6 +15,9 @@ class Assignment(Base):
 
     __tablename__ = "assignments"
 
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, index=True, autoincrement=True
+    )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     assignment_instructions: Mapped[str] = mapped_column(Text, nullable=False)
     max_score: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -25,8 +29,10 @@ class Assignment(Base):
     )
 
     # Foreign keys
-    teacher_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    teacher_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
     )
 
     # Relationships
@@ -51,6 +57,9 @@ class StudentAssignment(Base):
 
     __tablename__ = "student_assignments"
 
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, index=True, autoincrement=True
+    )
     submission_text: Mapped[str] = mapped_column(Text, nullable=False)
     score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     teacher_feedback: Mapped[Optional[str]] = mapped_column(
@@ -58,8 +67,10 @@ class StudentAssignment(Base):
     )
 
     # Foreign keys
-    student_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    student_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
     )
     assignment_id: Mapped[int] = mapped_column(
         ForeignKey("assignments.id", ondelete="CASCADE"), nullable=False
